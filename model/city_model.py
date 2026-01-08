@@ -17,6 +17,9 @@ from analytics.data_collector import SimulationDataCollector
 from analytics.demand_predictor import DemandPredictor
 from analytics.fleet_rebalancer import FleetRebalancer
 from analytics.ride_matcher import AdvancedRideMatcher
+from rl.rl_router import RLRouter, RLTaxiAgent
+from dispatch.central_dispatch import CentralDispatchSystem
+from optimization.multi_objective_optimizer import MultiObjectiveOptimizer
 from database.db_manager import DatabaseManager
 
 
@@ -27,7 +30,9 @@ class CityModel(Model):
     
     def __init__(self, width=30, height=30, num_taxis=10, num_traffic_lights=8, 
                  passenger_spawn_rate=0.1, enable_rush_hour=True, enable_weather=False,
-                 enable_database=True, enable_prediction=True, enable_rebalancing=True):
+                 enable_database=True, enable_prediction=True, enable_rebalancing=True,
+                 enable_rl_routing=False, enable_central_dispatch=False, 
+                 enable_multi_objective=False):
         super().__init__()
         
         # Model parameters
@@ -41,6 +46,9 @@ class CityModel(Model):
         self.enable_database = enable_database
         self.enable_prediction = enable_prediction
         self.enable_rebalancing = enable_rebalancing
+        self.enable_rl_routing = enable_rl_routing
+        self.enable_central_dispatch = enable_central_dispatch
+        self.enable_multi_objective = enable_multi_objective
         
         # Rush hour settings
         self.rush_hour_active = False
@@ -92,6 +100,24 @@ class CityModel(Model):
         
         # Advanced ride matcher
         self.ride_matcher = AdvancedRideMatcher()
+        
+        # Phase 2: RL Routing
+        if self.enable_rl_routing:
+            self.rl_router = RLRouter()
+        else:
+            self.rl_router = None
+        
+        # Phase 2: Central Dispatch System
+        if self.enable_central_dispatch:
+            self.central_dispatch = CentralDispatchSystem()
+        else:
+            self.central_dispatch = None
+        
+        # Phase 2: Multi-Objective Optimizer
+        if self.enable_multi_objective:
+            self.route_optimizer = MultiObjectiveOptimizer()
+        else:
+            self.route_optimizer = None
         
         # Rebalancing frequency (every N steps)
         self.rebalance_frequency = 5
@@ -182,6 +208,23 @@ class CityModel(Model):
         # Spawn new passengers
         if random.random() < effective_spawn_rate:
             self._spawn_passenger()
+        
+        # Phase 2: Central Dispatch System (global optimization)
+        if self.enable_central_dispatch and self.central_dispatch:
+            waiting_passengers = [a for a in self.schedule.agents 
+                                if isinstance(a, Passenger) and a.status == "waiting"]
+            available_taxis = [a for a in self.schedule.agents 
+                             if isinstance(a, Taxi) and len(a.passengers) < a.capacity]
+            
+            if waiting_passengers and available_taxis:
+                # Find optimal global assignments
+                assignments = self.central_dispatch.optimal_assignments(available_taxis, waiting_passengers)
+                # Execute assignments
+                if assignments:
+                    self.central_dispatch.execute_assignments(self, assignments)
+            
+            # Clear completed assignments
+            self.central_dispatch.clear_completed_assignments(self)
         
         # Fleet rebalancing (every N steps)
         if self.enable_rebalancing and self.fleet_rebalancer:

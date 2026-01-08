@@ -31,7 +31,7 @@ app = dash.Dash(
 # Expose server for deployment platforms (Render, Heroku, etc.)
 server = app.server
 
-# Model parameters with new features
+# Model parameters with Phase 2 features
 model_params = {
     "width": 30,
     "height": 30,
@@ -39,7 +39,13 @@ model_params = {
     "num_traffic_lights": 8,
     "passenger_spawn_rate": 0.1,
     "enable_rush_hour": True,
-    "enable_weather": False
+    "enable_weather": False,
+    "enable_database": True,
+    "enable_prediction": True,
+    "enable_rebalancing": True,
+    "enable_rl_routing": False,  # Phase 2: RL Routing
+    "enable_central_dispatch": False,  # Phase 2: Central Dispatch
+    "enable_multi_objective": False  # Phase 2: Multi-Objective Optimization
 }
 
 # Global model instance
@@ -55,6 +61,13 @@ data_history = {
     'active_taxis': [],
     'waiting_passengers': [],
     'passengers_served': []
+}
+
+# Store for Phase 2 feature states (for toggles)
+phase2_states = {
+    "rl_routing": False,
+    "central_dispatch": False,
+    "multi_objective": False
 }
 
 def run_simulation():
@@ -194,185 +207,297 @@ app.layout = dbc.Container([
         ], width=12)
     ], className="mb-4"),
     
-    # Key Metrics Cards
+    # Main Content Tabs
     dbc.Row([
         dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
+            dbc.Tabs([
+                dbc.Tab([
                     html.Div([
-                        html.I(className="bi bi-taxi-front metric-icon text-warning"),
-                        html.Div([
-                            html.H3(id="metric-total-taxis", className="mb-0"),
-                            html.Small("Total Fleet", className="text-muted")
-                        ])
-                    ], className="d-flex align-items-center")
-                ])
-            ], className="metric-card shadow-sm border-0")
-        ], width=2),
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
+                        # Key Metrics Cards
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardBody([
+                                        html.Div([
+                                            html.I(className="bi bi-taxi-front metric-icon text-warning"),
+                                            html.Div([
+                                                html.H3(id="metric-total-taxis", className="mb-0"),
+                                                html.Small("Total Fleet", className="text-muted")
+                                            ])
+                                        ], className="d-flex align-items-center")
+                                    ])
+                                ], className="metric-card shadow-sm border-0")
+                            ], width=2),
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardBody([
+                                        html.Div([
+                                            html.I(className="bi bi-check-circle-fill metric-icon text-success"),
+                                            html.Div([
+                                                html.H3(id="metric-active-taxis", className="mb-0"),
+                                                html.Small("Active Service", className="text-muted")
+                                            ])
+                                        ], className="d-flex align-items-center")
+                                    ])
+                                ], className="metric-card shadow-sm border-0")
+                            ], width=2),
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardBody([
+                                        html.Div([
+                                            html.I(className="bi bi-hourglass-split metric-icon text-warning"),
+                                            html.Div([
+                                                html.H3(id="metric-waiting", className="mb-0"),
+                                                html.Small("Waiting Passengers", className="text-muted")
+                                            ])
+                                        ], className="d-flex align-items-center")
+                                    ])
+                                ], className="metric-card shadow-sm border-0")
+                            ], width=2),
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardBody([
+                                        html.Div([
+                                            html.I(className="bi bi-people-fill metric-icon text-info"),
+                                            html.Div([
+                                                html.H3(id="metric-served", className="mb-0"),
+                                                html.Small("Passengers Served", className="text-muted")
+                                            ])
+                                        ], className="d-flex align-items-center")
+                                    ])
+                                ], className="metric-card shadow-sm border-0")
+                            ], width=2),
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardBody([
+                                        html.Div([
+                                            html.I(className="bi bi-clock-history metric-icon text-danger"),
+                                            html.Div([
+                                                html.H3(id="metric-wait-time", className="mb-0"),
+                                                html.Small("Avg Wait Time", className="text-muted")
+                                            ])
+                                        ], className="d-flex align-items-center")
+                                    ])
+                                ], className="metric-card shadow-sm border-0")
+                            ], width=2),
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardBody([
+                                        html.Div([
+                                            html.I(className="bi bi-graph-up-arrow metric-icon text-success"),
+                                            html.Div([
+                                                html.H3(id="metric-utilization", className="mb-0"),
+                                                html.Small("Utilization", className="text-muted")
+                                            ])
+                                        ], className="d-flex align-items-center")
+                                    ])
+                                ], className="metric-card shadow-sm border-0")
+                            ], width=2)
+                        ], className="mb-4"),
+                        
+                        # Advanced Analytics & Cost Analysis Row
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardHeader([
+                                        html.I(className="bi bi-lightbulb-fill me-2"),
+                                        "Advanced Analytics & Insights"
+                                    ]),
+                                    dbc.CardBody([
+                                        html.Div(id="analytics-insights", children=[])
+                                    ])
+                                ], className="shadow-sm")
+                            ], width=6),
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardHeader([
+                                        html.I(className="bi bi-cash-stack me-2"),
+                                        "Cost Analysis & Revenue"
+                                    ]),
+                                    dbc.CardBody([
+                                        html.Div(id="cost-analysis", children=[])
+                                    ])
+                                ], className="shadow-sm")
+                            ], width=6)
+                        ], className="mb-4"),
+                        
+                        html.Div(id="step-counter", className="text-center mb-4")
+                    ])
+                ], label="📊 Overview", tab_id="overview"),
+                
+                dbc.Tab([
                     html.Div([
-                        html.I(className="bi bi-check-circle-fill metric-icon text-success"),
-                        html.Div([
-                            html.H3(id="metric-active-taxis", className="mb-0"),
-                            html.Small("Active Service", className="text-muted")
-                        ])
-                    ], className="d-flex align-items-center")
-                ])
-            ], className="metric-card shadow-sm border-0")
-        ], width=2),
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
+                        # Charts Row
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardHeader("Wait Time Analysis"),
+                                    dbc.CardBody([
+                                        dcc.Graph(id="chart-wait-time", config={'displayModeBar': False})
+                                    ])
+                                ], className="shadow-sm")
+                            ], width=4),
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardHeader("Taxi Utilization"),
+                                    dbc.CardBody([
+                                        dcc.Graph(id="chart-utilization", config={'displayModeBar': False})
+                                    ])
+                                ], className="shadow-sm")
+                            ], width=4),
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardHeader("Traffic Density"),
+                                    dbc.CardBody([
+                                        dcc.Graph(id="chart-density", config={'displayModeBar': False})
+                                    ])
+                                ], className="shadow-sm")
+                            ], width=4)
+                        ], className="mb-4"),
+                    ])
+                ], label="📈 Analytics", tab_id="analytics"),
+                
+                dbc.Tab([
                     html.Div([
-                        html.I(className="bi bi-hourglass-split metric-icon text-warning"),
-                        html.Div([
-                            html.H3(id="metric-waiting", className="mb-0"),
-                            html.Small("Waiting Passengers", className="text-muted")
-                        ])
-                    ], className="d-flex align-items-center")
-                ])
-            ], className="metric-card shadow-sm border-0")
-        ], width=2),
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardHeader([
+                                        html.I(className="bi bi-grid-3x3-gap me-2"),
+                                        "City Simulation Grid",
+                                        html.Small(" (Click any agent to see details)", className="text-muted ms-2")
+                                    ]),
+                                    dbc.CardBody([
+                                        dcc.Graph(id="simulation-grid", config={'displayModeBar': False})
+                                    ])
+                                ], className="shadow-sm")
+                            ], width=12)
+                        ], className="mb-4"),
+                        
+                        # Real-Time Heatmap Visualization
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardHeader([
+                                        html.I(className="bi bi-map me-2"),
+                                        "Real-Time Demand Heatmap",
+                                        html.Small(" (Current passenger demand density)", className="text-muted ms-2")
+                                    ]),
+                                    dbc.CardBody([
+                                        dcc.Graph(id="heatmap-visualization", config={'displayModeBar': False})
+                                    ])
+                                ], className="shadow-sm")
+                            ], width=6),
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardHeader([
+                                        html.I(className="bi bi-graph-up-arrow me-2"),
+                                        "Demand Prediction Heatmap",
+                                        html.Small(" (AI-predicted future demand)", className="text-muted ms-2")
+                                    ]),
+                                    dbc.CardBody([
+                                        dcc.Graph(id="prediction-heatmap", config={'displayModeBar': False})
+                                    ])
+                                ], className="shadow-sm")
+                            ], width=6)
+                        ], className="mb-4")
+                    ])
+                ], label="🗺️ Visualizations", tab_id="visualizations"),
+                
+                dbc.Tab([
                     html.Div([
-                        html.I(className="bi bi-people-fill metric-icon text-info"),
-                        html.Div([
-                            html.H3(id="metric-served", className="mb-0"),
-                            html.Small("Passengers Served", className="text-muted")
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardHeader([
+                                        html.I(className="bi bi-brain me-2"),
+                                        "Reinforcement Learning Routing"
+                                    ]),
+                                    dbc.CardBody([
+                                        html.Div(id="rl-routing-info", children=[
+                                            html.P("RL Routing learns optimal paths from experience using Q-Learning."),
+                                            html.Hr(),
+                                            dbc.Switch(
+                                                id="toggle-rl",
+                                                label="Enable RL Routing",
+                                                value=False,
+                                                className="mb-3"
+                                            ),
+                                            html.Div(id="rl-stats", children="RL Router: Inactive")
+                                        ])
+                                    ])
+                                ], className="shadow-sm mb-4")
+                            ], width=6),
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardHeader([
+                                        html.I(className="bi bi-diagram-3 me-2"),
+                                        "Central Dispatch System"
+                                    ]),
+                                    dbc.CardBody([
+                                        html.Div(id="dispatch-info", children=[
+                                            html.P("Central dispatch optimizes global taxi-passenger assignments."),
+                                            html.Hr(),
+                                            dbc.Switch(
+                                                id="toggle-dispatch",
+                                                label="Enable Central Dispatch",
+                                                value=False,
+                                                className="mb-3"
+                                            ),
+                                            html.Div(id="dispatch-stats", children="Dispatch: Inactive")
+                                        ])
+                                    ])
+                                ], className="shadow-sm mb-4")
+                            ], width=6)
+                        ]),
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardHeader([
+                                        html.I(className="bi bi-route me-2"),
+                                        "Multi-Objective Optimization"
+                                    ]),
+                                    dbc.CardBody([
+                                        html.Div(id="optimizer-info", children=[
+                                            html.P("Balances time, distance, fuel cost, and passenger satisfaction."),
+                                            html.Hr(),
+                                            dbc.Switch(
+                                                id="toggle-optimizer",
+                                                label="Enable Multi-Objective Optimization",
+                                                value=False,
+                                                className="mb-3"
+                                            ),
+                                            html.Div(id="optimizer-stats", children="Optimizer: Inactive")
+                                        ])
+                                    ])
+                                ], className="shadow-sm mb-4")
+                            ], width=6),
+                            dbc.Col([
+                                dbc.Card([
+                                    dbc.CardHeader([
+                                        html.I(className="bi bi-question-circle me-2"),
+                                        "What-If Scenario Analysis"
+                                    ]),
+                                    dbc.CardBody([
+                                        html.Div(id="scenario-info", children=[
+                                            html.P("Test different configurations and strategies."),
+                                            html.Hr(),
+                                            dbc.Button("Run Scenario Analysis", id="btn-scenario", color="primary"),
+                                            html.Div(id="scenario-results", className="mt-3", style={
+                                                "overflowX": "auto",
+                                                "maxWidth": "100%",
+                                                "overflowY": "auto",
+                                                "maxHeight": "500px"
+                                            })
+                                        ])
+                                    ])
+                                ], className="shadow-sm mb-4")
+                            ], width=6)
                         ])
-                    ], className="d-flex align-items-center")
-                ])
-            ], className="metric-card shadow-sm border-0")
-        ], width=2),
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Div([
-                        html.I(className="bi bi-clock-history metric-icon text-danger"),
-                        html.Div([
-                            html.H3(id="metric-wait-time", className="mb-0"),
-                            html.Small("Avg Wait Time", className="text-muted")
-                        ])
-                    ], className="d-flex align-items-center")
-                ])
-            ], className="metric-card shadow-sm border-0")
-        ], width=2),
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Div([
-                        html.I(className="bi bi-graph-up-arrow metric-icon text-success"),
-                        html.Div([
-                            html.H3(id="metric-utilization", className="mb-0"),
-                            html.Small("Utilization", className="text-muted")
-                        ])
-                    ], className="d-flex align-items-center")
-                ])
-            ], className="metric-card shadow-sm border-0")
-        ], width=2)
-    ], className="mb-4"),
-    
-    # Charts Row
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader("Wait Time Analysis"),
-                dbc.CardBody([
-                    dcc.Graph(id="chart-wait-time", config={'displayModeBar': False})
-                ])
-            ], className="shadow-sm")
-        ], width=4),
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader("Taxi Utilization"),
-                dbc.CardBody([
-                    dcc.Graph(id="chart-utilization", config={'displayModeBar': False})
-                ])
-            ], className="shadow-sm")
-        ], width=4),
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader("Traffic Density"),
-                dbc.CardBody([
-                    dcc.Graph(id="chart-density", config={'displayModeBar': False})
-                ])
-            ], className="shadow-sm")
-        ], width=4)
-    ], className="mb-4"),
-    
-    # Advanced Analytics & Cost Analysis Row
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader([
-                    html.I(className="bi bi-lightbulb-fill me-2"),
-                    "Advanced Analytics & Insights"
-                ]),
-                dbc.CardBody([
-                    html.Div(id="analytics-insights", children=[])
-                ])
-            ], className="shadow-sm")
-        ], width=6),
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader([
-                    html.I(className="bi bi-cash-stack me-2"),
-                    "Cost Analysis & Revenue"
-                ]),
-                dbc.CardBody([
-                    html.Div(id="cost-analysis", children=[])
-                ])
-            ], className="shadow-sm")
-        ], width=6)
-    ], className="mb-4"),
-    
-    # Simulation Grid Visualization
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader([
-                    html.I(className="bi bi-grid-3x3-gap me-2"),
-                    "City Simulation Grid",
-                    html.Small(" (Click any agent to see details)", className="text-muted ms-2")
-                ]),
-                dbc.CardBody([
-                    dcc.Graph(id="simulation-grid", config={'displayModeBar': False}),
-                    html.Div(id="step-counter", className="text-center mt-3")
-                ])
-            ], className="shadow-sm")
+                    ])
+                ], label="⚡ AI & Optimization", tab_id="phase2"),
+            ], id="main-tabs", active_tab="overview")
         ], width=12)
-    ], className="mb-4"),
-    
-    # Real-Time Heatmap Visualization
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader([
-                    html.I(className="bi bi-map me-2"),
-                    "Real-Time Demand Heatmap",
-                    html.Small(" (Current passenger demand density)", className="text-muted ms-2")
-                ]),
-                dbc.CardBody([
-                    dcc.Graph(id="heatmap-visualization", config={'displayModeBar': False})
-                ])
-            ], className="shadow-sm")
-        ], width=6),
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader([
-                    html.I(className="bi bi-graph-up-arrow me-2"),
-                    "Demand Prediction Heatmap",
-                    html.Small(" (AI-predicted future demand)", className="text-muted ms-2")
-                ]),
-                dbc.CardBody([
-                    dcc.Graph(id="prediction-heatmap", config={'displayModeBar': False})
-                ])
-            ], className="shadow-sm")
-        ], width=6)
     ], className="mb-4"),
     
     # Agent Details Modal
@@ -1592,6 +1717,10 @@ def control_simulation(start_clicks, pause_clicks, step_clicks, reset_clicks):
         elif trigger_id == 'btn-reset':
             if reset_clicks:
                 running = False
+                # Preserve Phase 2 feature states
+                model_params["enable_rl_routing"] = phase2_states.get("rl_routing", False)
+                model_params["enable_central_dispatch"] = phase2_states.get("central_dispatch", False)
+                model_params["enable_multi_objective"] = phase2_states.get("multi_objective", False)
                 model = CityModel(**model_params)
                 data_history = {key: [] for key in data_history}
                 return "", "", "", "", False  # Disable simulation and reset
@@ -2311,6 +2440,213 @@ def export_json(n_clicks):
         return dict(content=json_string, filename=f"simulation_data_{timestamp}.json")
     except:
         return None
+
+# Phase 2 Features Callbacks - Combined callback for toggles and interval updates
+@app.callback(
+    Output('rl-stats', 'children'),
+    Output('dispatch-stats', 'children'),
+    Output('optimizer-stats', 'children'),
+    Input('interval-component', 'n_intervals'),
+    Input('toggle-rl', 'value'),
+    Input('toggle-dispatch', 'value'),
+    Input('toggle-optimizer', 'value'),
+    prevent_initial_call=False
+)
+def update_phase2_stats(n_intervals, rl_enabled, dispatch_enabled, optimizer_enabled):
+    """Update Phase 2 features statistics and handle toggle changes."""
+    global model, phase2_states, model_params, running
+    
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        trigger_id = 'interval-component'
+    else:
+        trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    # Handle toggle changes
+    if trigger_id in ['toggle-rl', 'toggle-dispatch', 'toggle-optimizer']:
+        # Update global states
+        phase2_states["rl_routing"] = rl_enabled if rl_enabled is not None else False
+        phase2_states["central_dispatch"] = dispatch_enabled if dispatch_enabled is not None else False
+        phase2_states["multi_objective"] = optimizer_enabled if optimizer_enabled is not None else False
+        
+        # Stop simulation if running
+        if running:
+            running = False
+        
+        # Update model params
+        model_params["enable_rl_routing"] = phase2_states["rl_routing"]
+        model_params["enable_central_dispatch"] = phase2_states["central_dispatch"]
+        model_params["enable_multi_objective"] = phase2_states["multi_objective"]
+        
+        # Recreate model with new settings
+        model = CityModel(**model_params)
+        
+        # Return simple status for toggle changes
+        rl_status = "RL Router: Active ✅" if phase2_states["rl_routing"] else "RL Router: Inactive"
+        dispatch_status = "Dispatch: Active ✅" if phase2_states["central_dispatch"] else "Dispatch: Inactive"
+        optimizer_status = "Optimizer: Active ✅" if phase2_states["multi_objective"] else "Optimizer: Inactive"
+        return rl_status, dispatch_status, optimizer_status
+    
+    # Handle interval updates (regular stats updates)
+    if model is None:
+        rl_status = "RL Router: Active ✅" if phase2_states.get("rl_routing", False) else "RL Router: Inactive"
+        dispatch_status = "Dispatch: Active ✅" if phase2_states.get("central_dispatch", False) else "Dispatch: Inactive"
+        optimizer_status = "Optimizer: Active ✅" if phase2_states.get("multi_objective", False) else "Optimizer: Inactive"
+        return rl_status, dispatch_status, optimizer_status
+    
+    try:
+        # Get current toggle states (may be None on first call)
+        rl_enabled = rl_enabled if rl_enabled is not None else phase2_states.get("rl_routing", False)
+        dispatch_enabled = dispatch_enabled if dispatch_enabled is not None else phase2_states.get("central_dispatch", False)
+        optimizer_enabled = optimizer_enabled if optimizer_enabled is not None else phase2_states.get("multi_objective", False)
+        
+        # RL Router stats
+        rl_stats_text = "RL Router: Inactive"
+        if hasattr(model, 'rl_router') and model.rl_router:
+            rl_stats_text = html.Div([
+                html.P([
+                    html.Strong("Status: "), 
+                    html.Span("Active", className="badge bg-success ms-2")
+                ]),
+                html.Small([
+                    html.Strong("Q-table states: "), 
+                    f"{len(model.rl_router.q_table)}"
+                ], className="d-block"),
+                html.Small([
+                    html.Strong("Total rewards: "), 
+                    f"{model.rl_router.total_rewards:.2f}"
+                ], className="d-block"),
+                html.Small([
+                    html.Strong("Step count: "), 
+                    f"{model.rl_router.step_count}"
+                ], className="d-block")
+            ])
+        elif rl_enabled:
+            rl_stats_text = "RL Router: Enabled (will activate after reset) 🔄"
+        
+        # Dispatch stats
+        dispatch_stats_text = "Dispatch: Inactive"
+        if hasattr(model, 'central_dispatch') and model.central_dispatch:
+            stats = model.central_dispatch.get_assignment_statistics()
+            dispatch_stats_text = html.Div([
+                html.P([
+                    html.Strong("Status: "), 
+                    html.Span("Active", className="badge bg-success ms-2")
+                ]),
+                html.Small([
+                    html.Strong("Total assignments: "), 
+                    f"{stats['total_assignments']}"
+                ], className="d-block"),
+                html.Small([
+                    html.Strong("Active assignments: "), 
+                    f"{stats['active_assignments']}"
+                ], className="d-block"),
+                html.Small([
+                    html.Strong("Method: "), 
+                    f"{stats['method']}"
+                ], className="d-block")
+            ])
+        elif dispatch_enabled:
+            dispatch_stats_text = "Dispatch: Enabled (will activate after reset) 🔄"
+        
+        # Optimizer stats
+        optimizer_stats_text = "Optimizer: Inactive"
+        if hasattr(model, 'route_optimizer') and model.route_optimizer:
+            optimizer_stats_text = html.Div([
+                html.P([
+                    html.Strong("Status: "), 
+                    html.Span("Active", className="badge bg-success ms-2")
+                ]),
+                html.Small([
+                    html.Strong("Time weight: "), 
+                    f"{model.route_optimizer.time_weight:.2f}"
+                ], className="d-block"),
+                html.Small([
+                    html.Strong("Distance weight: "), 
+                    f"{model.route_optimizer.distance_weight:.2f}"
+                ], className="d-block"),
+                html.Small([
+                    html.Strong("Satisfaction weight: "), 
+                    f"{model.route_optimizer.satisfaction_weight:.2f}"
+                ], className="d-block")
+            ])
+        elif optimizer_enabled:
+            optimizer_stats_text = "Optimizer: Enabled (will activate after reset) 🔄"
+        
+        return rl_stats_text, dispatch_stats_text, optimizer_stats_text
+    except Exception as e:
+        return f"Error: {str(e)}", "Error", "Error"
+
+@app.callback(
+    Output('scenario-results', 'children'),
+    Input('btn-scenario', 'n_clicks'),
+    prevent_initial_call=True
+)
+def run_scenario_analysis(n_clicks):
+    """Run what-if scenario analysis."""
+    global model, model_params
+    
+    if n_clicks is None or model is None:
+        return html.P("Click button to run scenario analysis", className="text-muted")
+    
+    try:
+        from scenarios.scenario_analyzer import ScenarioAnalyzer
+        
+        # Create analyzer with current config
+        analyzer = ScenarioAnalyzer(model_params)
+        
+        # Run scenarios
+        results = []
+        
+        # Fleet size analysis
+        fleet_df = analyzer.analyze_fleet_size_impact(min_taxis=5, max_taxis=15, step_size=5, simulation_steps=50)
+        if not fleet_df.empty:
+            # Create responsive table with proper styling
+            table_style = {
+                "fontSize": "0.85rem",
+                "width": "100%",
+                "tableLayout": "auto",
+                "whiteSpace": "nowrap"
+            }
+            results.append(html.Div([
+                html.H6("Fleet Size Impact Analysis", className="text-primary mb-2"),
+                html.Div([
+                    dbc.Table.from_dataframe(
+                        fleet_df.head(), 
+                        striped=True, 
+                        bordered=True, 
+                        hover=True, 
+                        size="sm",
+                        responsive=True,
+                        className="table-responsive"
+                    )
+                ], style={"overflowX": "auto", "maxWidth": "100%"}),
+            ], className="mb-3"))
+        
+        # Rebalancing impact
+        rebalance_df = analyzer.analyze_rebalancing_impact(simulation_steps=50)
+        if not rebalance_df.empty:
+            results.append(html.Div([
+                html.H6("Rebalancing Impact Analysis", className="text-primary mb-2"),
+                html.Div([
+                    dbc.Table.from_dataframe(
+                        rebalance_df, 
+                        striped=True, 
+                        bordered=True, 
+                        hover=True, 
+                        size="sm",
+                        responsive=True,
+                        className="table-responsive"
+                    )
+                ], style={"overflowX": "auto", "maxWidth": "100%"}),
+            ], className="mb-3"))
+        
+        if results:
+            return html.Div(results)
+        else:
+            return html.P("Scenario analysis completed. No results to display.", className="text-info")
+    except Exception as e:
+        return html.P(f"Error running scenario analysis: {str(e)}", className="text-danger")
 
 # Note: This file is imported by dashboard_main.py
 # Do not run app directly - use dashboard_main.py instead

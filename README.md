@@ -63,7 +63,7 @@ The batch file automatically:
 
 ## 📊 Complete Features List
 
-### **Phase 1 Advanced Features (NEW!)** 🚀
+### **Phase 1 Advanced Features** 🚀
 
 #### **1. Demand Prediction System** 🔮
 - **AI-Powered Forecasting** - Uses time-series analysis and spatial clustering
@@ -98,6 +98,42 @@ The batch file automatically:
 - **Real-Time Demand Heatmap** - Shows current passenger demand density
 - **Prediction Heatmap** - Visualizes AI-predicted future demand
 - **Priority Weighting** - Emergency/VIP passengers weighted higher
+
+### **Phase 2 Advanced Features (NEW!)** ⚡
+
+#### **1. Reinforcement Learning Routing** 🧠
+- **Q-Learning Algorithm** - Taxis learn optimal routing decisions through experience
+- **State-Action-Reward Framework** - Learns from every trip to improve routing
+- **Adaptive Learning** - Continuously improves performance as simulation runs
+- **Exploration vs Exploitation** - Balances trying new routes vs using known good routes
+- **Persistent Learning** - Q-table saved to disk for learning across simulation runs
+- **Smart Decision Making** - Makes routing decisions based on learned patterns
+
+#### **2. Central Dispatch System** 📡
+- **Global Optimization** - Centralized system optimizes all taxi-passenger assignments
+- **Hungarian Algorithm Approximation** - Finds optimal global matches
+- **Priority-Based Assignment** - Ensures emergency and VIP passengers get best service
+- **Cost Matrix Optimization** - Considers distance, priority, wait time, and capacity
+- **Real-Time Assignment Tracking** - Tracks all assignments and their outcomes
+- **Performance Improvement** - Better global coordination than decentralized approach
+
+#### **3. Multi-Objective Route Optimization** 🎯
+- **Pareto-Optimal Solutions** - Finds routes that balance multiple objectives
+- **Time Minimization** - Reduces travel time for passengers
+- **Distance Optimization** - Minimizes fuel consumption and costs
+- **Fuel Cost Reduction** - Considers fuel efficiency in route planning
+- **Passenger Satisfaction** - Maximizes satisfaction based on priority and wait time
+- **Weighted Scoring** - Configurable weights for different objectives
+- **Route Comparison** - Compares multiple route options to find best trade-offs
+
+#### **4. What-If Scenario Analysis** 🔮
+- **Configuration Testing** - Test different simulation configurations
+- **Fleet Size Analysis** - Compare performance with different fleet sizes
+- **Rebalancing Impact** - Analyze impact of enabling/disabling rebalancing
+- **Prediction Impact** - Compare performance with and without demand prediction
+- **Side-by-Side Comparison** - Compare multiple scenarios in one view
+- **Recommendations** - System generates recommendations based on scenario results
+- **Performance Metrics** - Track wait time, utilization, revenue across scenarios
 - **Taxi Overlay** - Shows taxi positions on heat maps
 - **Interactive Visualization** - Hover to see detailed demand values
 
