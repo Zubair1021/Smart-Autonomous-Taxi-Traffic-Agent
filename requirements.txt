@@ -1,0 +1,15 @@
+# Core Framework - Mesa 1.2.1 (stable version with ModularVisualization)
+mesa==1.2.1
+
+# Professional Dashboard Framework
+dash>=2.14.0
+dash-bootstrap-components>=1.5.0
+plotly>=5.18.0
+
+# Data Processing
+numpy>=2.0.0,<3.0.0
+pandas>=2.1.4
+networkx>=3.2.1
+
+# Web Server
+flask>=3.0.0
